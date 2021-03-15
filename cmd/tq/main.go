@@ -1,10 +1,10 @@
 package main
 
 import (
-	toml "github.com/mtps/tq/toml"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/mtps/tq/toml"
 	"io"
 	"io/ioutil"
 	"os"
