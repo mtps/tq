@@ -1,10 +1,10 @@
 package main
 
 import (
+	toml "github.com/mtps/tq/toml"
 	"encoding/json"
 	"flag"
 	"fmt"
-	toml "github.com/pelletier/go-toml"
 	"io"
 	"io/ioutil"
 	"os"
