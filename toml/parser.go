@@ -14,11 +14,12 @@ import (
 )
 
 type tomlParser struct {
-	flowIdx       int
-	flow          []token
-	tree          *Tree
-	currentTable  []string
-	seenTableKeys []string
+	flowIdx        int
+	flow           []token
+	tree           *Tree
+	currentTable   []string
+	currentComment string
+	seenTableKeys  []string
 }
 
 type tomlParserStateFn func() tomlParserStateFn
@@ -69,6 +70,8 @@ func (p *tomlParser) parseStart() tomlParserStateFn {
 	}
 
 	switch tok.typ {
+	case tokenComment:
+		return p.parseComment
 	case tokenDoubleLeftBracket:
 		return p.parseGroupArray
 	case tokenLeftBracket:
@@ -111,6 +114,10 @@ func (p *tomlParser) parseGroupArray() tomlParserStateFn {
 
 	// add a new tree to the end of the table array
 	newTree := newTree()
+
+	newTree.comment = p.currentComment
+	p.currentComment = ""
+
 	newTree.position = startToken.Position
 	array = append(array, newTree)
 	p.tree.SetPath(p.currentTable, array)
@@ -165,6 +172,17 @@ func (p *tomlParser) parseGroup() tomlParserStateFn {
 	}
 	p.assume(tokenRightBracket)
 	p.currentTable = keys
+	if t, ok := destTree.(*Tree); p.currentComment != "" && ok {
+		t.comment = p.currentComment
+		p.currentComment = ""
+	}
+	return p.parseStart
+}
+
+func (p *tomlParser) parseComment() tomlParserStateFn {
+	tok := p.peek()
+	p.assume(tokenComment)
+	p.currentComment = tok.val
 	return p.parseStart
 }
 
@@ -225,7 +243,9 @@ func (p *tomlParser) parseAssign() tomlParserStateFn {
 	case *Tree, []*Tree:
 		toInsert = value
 	default:
-		toInsert = &tomlValue{value: value, position: key.Position}
+		cmt := p.currentComment
+		p.currentComment = ""
+		toInsert = &tomlValue{value: value, position: key.Position, comment: cmt}
 	}
 	targetNode.values[keyVal] = toInsert
 	return p.parseStart

@@ -61,10 +61,9 @@ type marshalOrder int
 
 // Orders the Encoder can write the fields to the output stream.
 const (
-	// Sort fields alphabetically.
+	// OrderAlphabetical Sort fields alphabetically.
 	OrderAlphabetical marshalOrder = iota + 1
-	// Preserve the order the fields are encountered. For example, the order of fields in
-	// a struct.
+	// OrderPreserve Preserve the order the fields are encountered. For example, the order of fields in a struct.
 	OrderPreserve
 )
 

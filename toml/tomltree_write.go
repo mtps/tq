@@ -366,6 +366,19 @@ func (t *Tree) writeToOrdered(w io.Writer, indent, keyspace string, bytesCount i
 				}
 			case []*Tree:
 				for _, subTree := range node {
+					if subTree.comment != "" {
+						comment := strings.Replace(subTree.comment, "\n", "\n"+indent+"#", -1)
+						start := "# "
+						if strings.HasPrefix(comment, "#") {
+							start = ""
+						}
+						writtenBytesCountComment, errc := writeStrings(w, "\n", indent, start, comment)
+						bytesCount += int64(writtenBytesCountComment)
+						if errc != nil {
+							return bytesCount, errc
+						}
+					}
+
 					var commented string
 					if parentCommented || t.commented || subTree.commented {
 						commented = "# "

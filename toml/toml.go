@@ -173,6 +173,35 @@ func (t *Tree) GetArrayPath(keys []string) interface{} {
 	}
 }
 
+// getNode returns the element in the tree indicated by 'keys'.
+// If keys is of length zero, the current tree is returned.
+func (t *Tree) getNode(keys []string) interface{} {
+	if len(keys) == 0 {
+		return t
+	}
+	subtree := t
+	for _, intermediateKey := range keys[:len(keys)-1] {
+		value, exists := subtree.values[intermediateKey]
+		if !exists {
+			return nil
+		}
+		switch node := value.(type) {
+		case *Tree:
+			subtree = node
+		case []*Tree:
+			// go to first element
+			if len(node) == 0 {
+				return nil
+			}
+			subtree = node[0]
+		default:
+			return nil // cannot navigate through other node types
+		}
+	}
+	// branch based on final node type
+	return subtree.values[keys[len(keys)-1]]
+}
+
 // if homogeneous array, then return slice type object over []interface{}
 func getArray(n []interface{}) interface{} {
 	var s []string
@@ -378,7 +407,18 @@ func (t *Tree) SetPathWithOptions(keys []string, opts SetOptions, value interfac
 // Key is a dot-separated path (e.g. a.b.c).
 // Creates all necessary intermediate trees, if needed.
 func (t *Tree) Set(key string, value interface{}) {
-	t.SetWithComment(key, "", false, value)
+	// Get the existing comment
+	comment := ""
+	tree := t.getNode(strings.Split(key, "."))
+	if tree != nil {
+		switch node := tree.(type) {
+		case *Tree:
+			comment = node.comment
+		case *tomlValue:
+			comment = node.comment
+		}
+	}
+	t.SetWithComment(key, comment, false, value)
 }
 
 // SetWithComment is the same as Set, but allows you to provide comment
