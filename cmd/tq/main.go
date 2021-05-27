@@ -8,6 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 )
 
 
@@ -24,16 +26,13 @@ func init() {
 func main() {
 	flag.Parse()
 
-	if argToJson == false && argToToml == false {
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	var fn func(io.Reader) (string, error)
 	if argToToml {
 		fn = processJsonToToml
 	} else if argToJson {
 		fn = processTomlToJson
+	} else {
+		fn = runScript
 	}
 
 	if fn != nil {
@@ -42,7 +41,7 @@ func main() {
 			panic(err)
 		}
 
-		fmt.Printf(output)
+		fmt.Printf("~~~~~~~~~~~~~~~~~~~~~~\n%s\n~~~~~~~~~~~~~~~~~~~~~~\n", output)
 	}
 }
 
@@ -77,5 +76,88 @@ func processTomlToJson(r io.Reader) (string, error) {
 	return string(bz), nil
 }
 
+func runScript(r io.Reader) (string, error) {
+	var scripts []string
+	for _, arg := range flag.Args() {
+		scripts = append(scripts, strings.TrimSpace(arg))
+	}
 
+	tree, err := toml.LoadReader(r)
+	if err != nil {
+		return "", fmt.Errorf("faled to load toml file: %w", err)
+	}
+
+	var gets []string
+	var sets []string
+	for _, script := range scripts {
+		parts := strings.Split(script, "=")
+		if len(parts) == 1 {
+			// Get operation
+			gets = append(gets, parts[0])
+		} else if len(parts) == 2 {
+			// Set operation
+			sets = append(sets, script)
+		}
+	}
+
+	if len(gets) != 0 && len(sets) != 0 {
+		return "", fmt.Errorf("set and get not allowed in same call")
+	}
+
+	if len(gets) > 0 {
+		sb := strings.Builder{}
+		for _, get := range gets {
+			value := tree.Get(get)
+			sb.WriteString(fmt.Sprintf("%s", value))
+			sb.WriteString("\n")
+		}
+		return sb.String(), nil
+	}
+
+	for _, set := range sets {
+		parts := strings.Split(set, "=")
+		value := tree.Get(parts[0])
+
+		var v interface{}
+		// Only fields of the following types are supported:
+		//   * string
+		//   * bool
+		//   * int
+		//   * int64
+		//   * float64
+		p := strings.TrimSpace(parts[1])
+		switch value.(type) {
+		case int:
+			v, err = strconv.Atoi(p)
+			if err != nil {
+				return "", fmt.Errorf("expected int: %w", err)
+			}
+		case int64:
+			i, err := strconv.Atoi(p)
+			if err != nil {
+				return "", fmt.Errorf("expected int64: %w", err)
+			}
+			v = int64(i)
+
+		case float64:
+			v, err = strconv.ParseFloat(p, 64)
+			if err != nil {
+				return "", fmt.Errorf("expected float64: %w", err)
+			}
+
+		case bool:
+			v, err = strconv.ParseBool(p)
+			if err != nil {
+				return "", fmt.Errorf("expected bool: %w", err)
+			}
+
+		case string:
+			v = parts[1]
+		}
+
+		tree.Set(parts[0], v)
+	}
+
+	return tree.ToTomlString()
+}
 

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -128,7 +129,7 @@ func (l *tomlLexer) lexVoid() tomlLexStateFn {
 		case '[':
 			return l.lexTableKey
 		case '#':
-			return l.lexComment(l.lexVoid)
+			return l.lexComment
 		case '=':
 			return l.lexEqual
 		case '\r':
@@ -173,7 +174,7 @@ func (l *tomlLexer) lexRvalue() tomlLexStateFn {
 		case '}':
 			return l.lexRightCurlyBrace
 		case '#':
-			return l.lexComment(l.lexRvalue)
+			return l.lexComment
 		case '"':
 			return l.lexString
 		case '\'':
@@ -368,17 +369,18 @@ func (l *tomlLexer) lexKey() tomlLexStateFn {
 	return l.lexVoid
 }
 
-func (l *tomlLexer) lexComment(previousState tomlLexStateFn) tomlLexStateFn {
-	return func() tomlLexStateFn {
-		for next := l.peek(); next != '\n' && next != eof; next = l.peek() {
-			if next == '\r' && l.follow("\r\n") {
-				break
-			}
-			l.next()
+func (l *tomlLexer) lexComment() tomlLexStateFn {
+	var sb strings.Builder
+	for next := l.peek(); next != '\n' && next != eof; next = l.peek() {
+		if next == '\r' && l.follow("\r\n") {
+			break
 		}
-		l.ignore()
-		return previousState
+		sb.WriteRune(l.next())
 	}
+	l.emitWithValue(tokenComment, sb.String())
+	log.Printf("emit comment: '%s'\n", sb.String())
+		// l.ignore()
+	return l.lexVoid
 }
 
 func (l *tomlLexer) lexLeftBracket() tomlLexStateFn {
