@@ -378,8 +378,6 @@ func (l *tomlLexer) lexComment() tomlLexStateFn {
 		sb.WriteRune(l.next())
 	}
 	l.emitWithValue(tokenComment, sb.String())
-	log.Printf("emit comment: '%s'\n", sb.String())
-		// l.ignore()
 	return l.lexVoid
 }
 
