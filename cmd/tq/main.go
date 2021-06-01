@@ -41,7 +41,7 @@ func main() {
 			panic(err)
 		}
 
-		fmt.Printf("~~~~~~~~~~~~~~~~~~~~~~\n%s\n~~~~~~~~~~~~~~~~~~~~~~\n", output)
+		fmt.Printf("%s\n", output)
 	}
 }
 
